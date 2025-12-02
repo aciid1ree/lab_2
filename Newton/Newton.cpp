@@ -243,9 +243,4 @@ int run_newton_openmp_demo() {
     return 0;
 }
 
-// Simple main that just calls the demo function.
-// If you want to use this file as a library, you can remove this main()
-// and just call run_newton_openmp_demo() from another project.
-int main() {
-    return run_newton_openmp_demo();
-}
+
