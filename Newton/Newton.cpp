@@ -4,6 +4,8 @@
 #include <omp.h>
 #include <chrono>
 #include <iomanip>
+#include <limits>
+#include <string>
 
 // Класс для хранения результатов
 struct Result {
@@ -46,7 +48,8 @@ Result newton_method(double A, double B, double C, double initial_x,
 
         double x_new = x - fx / dfx;
 
-        if (std::fabs(x_new - x) < tolerance) {
+        // Проверка сходимости
+        if (std::fabs(x_new - x) < tolerance && std::fabs(fx) < tolerance) {
             result.root = x_new;
             result.iterations = i + 1;
             result.converged = true;
@@ -60,13 +63,48 @@ Result newton_method(double A, double B, double C, double initial_x,
     return result;
 }
 
+// Безопасный ввод числа с проверкой
+bool read_double(const std::string& prompt, double& value) {
+    while (true) {
+        std::cout << prompt;
+        std::cin >> value;
+
+        if (std::cin.good()) {
+            return true;
+        }
+
+        if (std::cin.eof()) {
+            return false;
+        }
+
+        std::cin.clear();
+        std::cin.ignore(1000, '\n');
+        std::cout << "Ошибка ввода. Пожалуйста, введите число.\n";
+    }
+}
+
 int main() {
     setlocale(LC_ALL, "Russian");
 
-    double A = 1.0, B = 3.0, C = 2.0; 
+    double A, B, C;
 
-    std::cout << "Метод Ньютона для решения уравнения Ax^2 - Bx = C\n";
-    std::cout << "Пример: " << A << "x^2 - " << B << "x = " << C << "\n\n";
+    std::cout << "Метод Ньютона для решения уравнения Ax^2 - Bx = C\n\n";
+
+    // Ввод параметров уравнения с проверкой
+    if (!read_double("Введите коэффициент A: ", A)) {
+        std::cerr << "Ошибка: поток ввода закрыт. Завершение программы.\n";
+        return 1;
+    }
+    if (!read_double("Введите коэффициент B: ", B)) {
+        std::cerr << "Ошибка: поток ввода закрыт. Завершение программы.\n";
+        return 1;
+    }
+    if (!read_double("Введите коэффициент C: ", C)) {
+        std::cerr << "Ошибка: поток ввода закрыт. Завершение программы.\n";
+        return 1;
+    }
+
+    std::cout << "\nРешение уравнения: " << A << "x^2 - " << B << "x = " << C << "\n";
 
     // Начальные приближения от -4 до 4
     std::vector<double> initial_points;
@@ -85,33 +123,43 @@ int main() {
     auto end_seq = std::chrono::high_resolution_clock::now();
     auto seq_time = std::chrono::duration<double>(end_seq - start_seq).count();
 
-    // Параллельная версия
-    std::cout << "\nСравнение производительности:\n";
-    std::cout << std::setw(10) << "Потоки" << std::setw(15) << "Время (с)"
-        << std::setw(15) << "Ускорение\n";
-    std::cout << std::string(40, '-') << "\n";
+    // Вывод результатов
+    std::cout << "\nРезультаты для начальных точек от -4 до 4:\n";
+    std::cout << std::setw(10) << "x0" << std::setw(15) << "Корень"
+        << std::setw(12) << "Итерации" << std::setw(12) << "Сходимость"
+        << std::setw(15) << "Причина\n";
+    std::cout << std::string(64, '-') << "\n";
 
-    std::vector<int> threads_to_test = { 1, 2, 4, 8 };
+    for (const auto& r : seq_results) {
+        std::string conv_str = r.converged ? "да" : "нет";
+        std::string reason_str = "-";
 
-    for (int num_threads : threads_to_test) {
-        omp_set_num_threads(num_threads);
-
-        auto start_par = std::chrono::high_resolution_clock::now();
-        std::vector<Result> par_results(initial_points.size());
-
-#pragma omp parallel for
-        for (int i = 0; i < static_cast<int>(initial_points.size()); i++) {
-            par_results[i] = newton_method(A, B, C, initial_points[i]);
+        if (!r.converged) {
+            if (r.derivative_zero) {
+                reason_str = "df=0";
+            }
+            else {
+                reason_str = "макс. итераций";
+            }
         }
 
-        auto end_par = std::chrono::high_resolution_clock::now();
-        double par_time = std::chrono::duration<double>(end_par - start_par).count();
-        double speedup = seq_time / par_time;
-
-        std::cout << std::setw(10) << num_threads
-            << std::setw(15) << std::fixed << std::setprecision(6) << par_time
-            << std::setw(15) << std::fixed << std::setprecision(2) << speedup << "\n";
+        std::cout << std::setw(10) << r.initial_x;
+        if (r.converged) {
+            std::cout << std::setw(15) << std::fixed << std::setprecision(8) << r.root
+                << std::setw(12) << r.iterations
+                << std::setw(12) << conv_str
+                << std::setw(15) << reason_str << "\n";
+        }
+        else {
+            std::cout << std::setw(15) << "--"
+                << std::setw(12) << r.iterations
+                << std::setw(12) << conv_str
+                << std::setw(15) << reason_str << "\n";
+        }
     }
+
+    std::cout << "\nВремя последовательного выполнения: "
+        << std::fixed << std::setprecision(6) << seq_time << " с\n";
 
     return 0;
 }
