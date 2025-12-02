@@ -85,7 +85,7 @@ bool read_double(const std::string& prompt, double& value) {
     }
 }
 
-int main() {
+int run_newton_openmp_demo() {
     setlocale(LC_ALL, "Russian");
     SetConsoleOutputCP(1251);
     SetConsoleCP(1251);
