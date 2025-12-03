@@ -1,4 +1,4 @@
-name: Build & Test Newton
+name: Build & Test Newton (Windows)
 
 on:
   push:
@@ -7,34 +7,31 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install g++
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y g++
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
 
       # ============================
       # Build main executable
       # ============================
       - name: Build main program
         run: |
-          g++ Newton.cpp launcher.cpp -o newton_exec
+          cl /EHsc /Fe:newton_exec.exe Newton.cpp launcher.cpp
 
       # ============================
-      # Build test executable
+      # Build tests
       # ============================
       - name: Build tests
         run: |
-          g++ Newton.cpp Test/Test.cpp -o test_exec
+          cl /EHsc /Fe:test_exec.exe Newton.cpp Test\Test.cpp
 
       # ============================
       # Run tests
       # ============================
       - name: Run tests
-        run: |
-          ./test_exec
+        run: .\test_exec.exe
